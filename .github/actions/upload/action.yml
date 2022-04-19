@@ -29,10 +29,10 @@ inputs:
   mattermostwebhook:
     description: 'Send webhook event notifications'
     required: false
-  staging:
-    description: 'Staging (true, false)'
+  destination:
+    description: 'examples: :clapper: *Live* / :closed_lock_with_key: *Staging*'
     required: false
-    default: false
+    default: ':clapper: *Live*'
   debug:
     description: 'Enable debug information (true, false)'
     required: false
@@ -51,8 +51,8 @@ runs:
         }
 
         function send_webhook() {
-          local status="$1"
-          local post_data="[${{ github.repository }}](${{ github.server_url }}/${{ github.repository }}) ${status}\n##### $(date '+%Y-%m-%d %H:%M:%S') - ${{ github.event.head_commit.message }} \nactor: ${{ github.actor }}"
+          local message="$1"
+          local post_data="|  |  |  |\n| :------------ |:---------------:| :----- |\n| [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }}) | ${{ github.event.head_commit.message }} | :bust_in_silhouette: ${{ github.actor }} |\n| $(date '+%H:%M:%S') | ${message} | ${{inputs.destination}} |"
 
           curl --data "{\"text\":\"${post_data}\"}" --header "Content-Type: application/json" --max-time 30 --show-error --silent --user-agent "GitHub Workflow" "${{inputs.mattermostwebhook}}"
         }
@@ -141,34 +141,17 @@ runs:
 
         echo "::group::Deploy to __new__"
 
-        if [ "${{inputs.staging}}" == "true" ]; then
-          lftp -c "mirror --exclude index.html --no-symlinks --reverse ${{inputs.local-path}} ${{inputs.remote-path}}"
+        lftp -c "mirror --exclude index.html --no-symlinks --reverse ${{inputs.local-path}} ${{inputs.remote-path}}"
 
-          [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :warning: Deployment: start [:closed_lock_with_key: staging]")" 
+        [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :hammer: Deployment Started")" 
 
-          lftp -c "put -e -O /"${{inputs.remote-path}}/" "${{inputs.local-path}}/index.html""
+        lftp -c "put -e -O /"${{inputs.remote-path}}/" "${{inputs.local-path}}/index.html""
 
-          [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :white_check_mark: Deployment: done [:closed_lock_with_key: staging]")"
+        [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :rocket: Deployment Finished")"
 
-          lftp -c "mirror --no-symlinks --reverse --delete ${{inputs.local-path}} ${{inputs.remote-path}}"
+        lftp -c "mirror --no-symlinks --reverse --delete ${{inputs.local-path}} ${{inputs.remote-path}}"
 
-          [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :broom: Cleanup [:closed_lock_with_key: staging]")"
-        fi
-
-        if [ "${{inputs.staging}}" == "false" ]; then
-          lftp -c "mirror --exclude index.html --no-symlinks --reverse ${{inputs.local-path}} ${{inputs.remote-path}}"
-
-          [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :warning: Deployment: start")" 
-
-          lftp -c "put -e -O /"${{inputs.remote-path}}/" "${{inputs.local-path}}/index.html""
-
-          [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :white_check_mark: Deployment: done ")"
-
-          lftp -c "mirror --no-symlinks --reverse --delete ${{inputs.local-path}} ${{inputs.remote-path}}"
-
-          [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :broom: Cleanup ")"
-        fi
-
+        [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :broom: Cleanup")"
 
         echo "::endgroup::"
 

@@ -21,8 +21,6 @@ runs:
       run: |
         echo "::group::Initialization"
         function send_webhook() {
-          local message="$1"
-          local destination="$2"
           local post_data="|  |  |  |\n| :------------ |:---------------:| :----- |\n| [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }}) | ${{ github.event.head_commit.message }} | :bust_in_silhouette: ${{ github.actor }} |\n| $(date '+%H:%M:%S') | ${{inputs.message}} | ${{inputs.destination}} |"
 
           curl --data "{\"text\":\"${post_data}\"}" --header "Content-Type: application/json" --max-time 30 --show-error --silent --user-agent "GitHub Workflow" "${{inputs.webhook}}"
@@ -32,7 +30,7 @@ runs:
 
 
         echo "::group::POST"
-        [ "${{inputs.webhook}}" != "" ] && echo "Webhook notification (send message): $(send_webhook "${{inputs.message}}" "${{inputs.destination}}")"
+        [ "${{inputs.webhook}}" != "" ] && echo "Webhook notification (send message): $(send_webhook)"
         echo "::endgroup::"
 
 
