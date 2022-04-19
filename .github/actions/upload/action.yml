@@ -1,0 +1,177 @@
+name: 'Upload'
+description: 'lftp mirror'
+inputs:
+  remote-host:
+    description: 'Remote host'
+    required: true
+  remote-user:
+    description: 'SFTP/SSH username'
+    required: true
+  ssh-private-key:
+    description: 'SSH private key of user'
+    required: true
+  local-path:
+    description: 'Local path to repository'
+    required: false
+    default: .
+  remote-path:
+    description: 'Remote path on host'
+    required: false
+    default: .
+  keep-file-list:
+    description: 'Newline-delimited list of file paths to copy to deployment folder (lftp)'
+    required: false
+    default: ''
+  keep-folder-list:
+    description: 'Newline-delimited list of folder paths to copy to deployment folder (lftp)'
+    required: false
+    default: ''
+  mattermostwebhook:
+    description: 'Send webhook event notifications'
+    required: false
+  staging:
+    description: 'Staging (true, false)'
+    required: false
+    default: false
+  debug:
+    description: 'Enable debug information (true, false)'
+    required: false
+    default: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Deploy'
+      shell: bash
+      run: |
+        echo "::group::Initialization"
+
+        function show_hr() {
+          printf '%.s_' {1..100} && echo ""
+        }
+
+        function send_webhook() {
+          local status="$1"
+          local post_data="[${{ github.repository }}](${{ github.server_url }}/${{ github.repository }}) ${status}\n##### $(date '+%Y-%m-%d %H:%M:%S') - ${{ github.event.head_commit.message }} \nactor: ${{ github.actor }}"
+
+          curl --data "{\"text\":\"${post_data}\"}" --header "Content-Type: application/json" --max-time 30 --show-error --silent --user-agent "GitHub Workflow" "${{inputs.mattermostwebhook}}"
+        }
+
+        echo "::endgroup::" 
+
+
+
+        echo "::group::Install packages"
+
+        apt_install=""
+        apt_quiet="--quiet --quiet"
+        if [ "${{inputs.debug}}" == "true" ]; then
+          apt_quiet=""
+        fi
+        sudo apt-get ${apt_quiet} update && sudo apt-get ${apt_quiet} --no-install-recommends --yes install lftp
+
+        echo "::endgroup::"
+
+
+
+        echo "::group::Configurations"
+
+        config_ssh=~/.ssh/config
+        mkdir ~/.ssh && echo -e "ExitOnForwardFailure=yes\nStrictHostKeyChecking=no" > ${config_ssh} && chmod 600 ${config_ssh} && echo "File created: ${config_ssh}"
+        [ "${{inputs.debug}}" == "true" ] && cat ${config_ssh}
+        show_hr
+
+        netrc=~/.netrc
+        echo "machine ${{inputs.remote-host}} login ${{inputs.remote-user}} password dummypassword" > ${netrc} && chmod 600 ${netrc} && echo "File created: ${netrc}"
+        [ "${{inputs.debug}}" == "true" ] && cat ${netrc}
+        show_hr
+
+        key_ssh=~/ssh_private_key
+        echo "${{inputs.ssh-private-key}}" > ${key_ssh} && chmod 600 ${key_ssh} && echo "File created: ${key_ssh}" && show_hr
+
+        echo "debug $([ "${{inputs.debug}}" == "true" ] && echo "9" || echo "false")
+        set ftp:ssl-protect-data true
+        set ftp:sync-mode false
+        set log:enabled/xfer true
+        set log:file/xfer ~/transfer_log.txt
+        set log:show-time/xfer false
+        set mirror:overwrite true
+        set mirror:parallel-transfer-count 3
+        set mirror:set-permissions false
+        set net:max-retries 1
+        set net:persist-retries 0
+        set net:timeout 10
+        set sftp:auto-confirm true
+        set ssl:check-hostname false
+        set ssl:verify-certificate false
+        set xfer:clobber on
+        set xfer:parallel 3" > ~/.lftprc
+        echo "set sftp:connect-program /usr/bin/ssh -a -x -i ~/ssh_private_key" >> ~/.lftprc
+        echo "open -d sftp://${{inputs.remote-user}}@${{inputs.remote-host}}:22" >> ~/.lftprc
+
+        echo "File created: ~/.lftprc"
+
+        echo "::endgroup::"
+
+        show_hr
+
+        echo "::group::KeepFiles"
+
+        echo "${{ inputs.keep-file-list }}"
+        files=("${{ inputs.keep-file-list }}")
+        for value in $files
+        do
+            echo "- ${value} -"
+            lftp -c "get1 -o ${{inputs.local-path}}/${value} -d ${{inputs.remote-path}}/${value}" 
+        done
+
+        show_hr
+
+        echo "${{ inputs.keep-folder-list }}"
+        folders=("${{ inputs.keep-folder-list }}")
+        for value in $folders
+        do
+            echo "- ${value} -"
+            lftp -c "mirror ${{inputs.remote-path}}/${value} ${{inputs.local-path}}/${value}"
+        done
+
+        echo "::endgroup::"
+
+
+
+        echo "::group::Deploy to __new__"
+
+        if [ "${{inputs.staging}}" == "true" ]; then
+          lftp -c "mirror --exclude index.html --no-symlinks --reverse ${{inputs.local-path}} ${{inputs.remote-path}}"
+
+          [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :warning: Deployment: start [:closed_lock_with_key: staging]")" 
+
+          lftp -c "put -e -O /"${{inputs.remote-path}}/" "${{inputs.local-path}}/index.html""
+
+          [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :white_check_mark: Deployment: done [:closed_lock_with_key: staging]")"
+
+          lftp -c "mirror --no-symlinks --reverse --delete ${{inputs.local-path}} ${{inputs.remote-path}}"
+
+          [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :broom: Cleanup [:closed_lock_with_key: staging]")"
+        fi
+
+        if [ "${{inputs.staging}}" == "false" ]; then
+          lftp -c "mirror --exclude index.html --no-symlinks --reverse ${{inputs.local-path}} ${{inputs.remote-path}}"
+
+          [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :warning: Deployment: start")" 
+
+          lftp -c "put -e -O /"${{inputs.remote-path}}/" "${{inputs.local-path}}/index.html""
+
+          [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :white_check_mark: Deployment: done ")"
+
+          lftp -c "mirror --no-symlinks --reverse --delete ${{inputs.local-path}} ${{inputs.remote-path}}"
+
+          [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :broom: Cleanup ")"
+        fi
+
+
+        echo "::endgroup::"
+
+
+
+        exit 0

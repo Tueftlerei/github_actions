@@ -1,0 +1,98 @@
+name: 'Get Folder'
+description: 'copy folder (lftp)'
+inputs:
+  remote-host:
+    description: 'Remote host'
+    required: true
+  remote-user:
+    description: 'SFTP/SSH username'
+    required: true
+  ssh-private-key:
+    description: 'SSH private key of user'
+    required: true
+  local-path:
+    description: 'Local path'
+    required: true
+    default: .
+  remote-path:
+    description: 'Remote path'
+    required: true
+    default: .
+  debug:
+    description: 'Enable debug information (true, false)'
+    required: true
+    default: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Download'
+      shell: bash
+      run: |
+        echo "::group::Install packages"
+
+        apt_install=""
+        apt_quiet="--quiet --quiet"
+        if [ "${{inputs.debug}}" == "true" ]; then
+          apt_quiet=""
+        fi
+        sudo apt-get ${apt_quiet} update && sudo apt-get ${apt_quiet} --no-install-recommends --yes install lftp
+
+        echo "::endgroup::"
+
+
+
+        echo "::group::Configurations"
+
+        config_ssh=~/.ssh/config
+        mkdir ~/.ssh && echo -e "ExitOnForwardFailure=yes\nStrictHostKeyChecking=no" > ${config_ssh} && chmod 600 ${config_ssh} && echo "File created: ${config_ssh}"
+        [ "${{inputs.debug}}" == "true" ] && cat ${config_ssh}
+
+        netrc=~/.netrc
+        echo "machine ${{inputs.remote-host}} login ${{inputs.remote-user}} password dummypassword" > ${netrc} && chmod 600 ${netrc} && echo "File created: ${netrc}"
+        [ "${{inputs.debug}}" == "true" ] && cat ${netrc}
+
+        key_ssh=~/ssh_private_key
+        echo "${{inputs.ssh-private-key}}" > ${key_ssh} && chmod 600 ${key_ssh} && echo "File created: ${key_ssh}"
+
+
+        echo "debug $([ "${{inputs.debug}}" == "true" ] && echo "9" || echo "false")
+        set ftp:ssl-protect-data true
+        set ftp:sync-mode false
+        set log:enabled/xfer true
+        set log:file/xfer ~/transfer_log.txt
+        set log:show-time/xfer false
+        set mirror:overwrite true
+        set mirror:parallel-transfer-count 3
+        set mirror:set-permissions false
+        set net:max-retries 1
+        set net:persist-retries 0
+        set net:timeout 10
+        set sftp:auto-confirm true
+        set ssl:check-hostname false
+        set ssl:verify-certificate false
+        set xfer:parallel 3" > ~/.lftprc
+        echo "set sftp:connect-program /usr/bin/ssh -a -x -i ~/ssh_private_key" >> ~/.lftprc
+        echo "open -d sftp://${{inputs.remote-user}}@${{inputs.remote-host}}:22" >> ~/.lftprc
+
+        echo "File created: ~/.lftprc"
+
+        echo "::endgroup::"
+
+
+
+        echo "::group::Transfer files"
+
+        lftp -c "mirror --no-symlinks ${{inputs.remote-path}} ${{inputs.local-path}}"
+
+        echo "::endgroup::"
+
+
+
+        echo "::group::Cleanup"
+
+        rm --force --verbose ~/.netrc ~/ssh_private_key
+
+        echo "::endgroup::"
+
+        exit 0
