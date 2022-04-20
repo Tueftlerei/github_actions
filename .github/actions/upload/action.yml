@@ -52,7 +52,7 @@ runs:
 
         function send_webhook() {
           local message="$1"
-          local post_data="|  |  |  |\n| :------------ |:---------------:| :----- |\n| [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }}) | ${{ github.event.head_commit.message }} | :bust_in_silhouette: ${{ github.actor }} |\n| $(date '+%H:%M:%S') | ${message} | ${{inputs.destination}} |"
+          local post_data="|  |  |  |\n| :------------ |:--------------- | :----- |\n| [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }}) | ${{ github.event.head_commit.message }} | :bust_in_silhouette: ${{ github.actor }} |\n| $(date '+%H:%M:%S') | ${message} | ${{inputs.destination}} |"
 
           curl --data "{\"text\":\"${post_data}\"}" --header "Content-Type: application/json" --max-time 30 --show-error --silent --user-agent "GitHub Workflow" "${{inputs.mattermostwebhook}}"
         }
