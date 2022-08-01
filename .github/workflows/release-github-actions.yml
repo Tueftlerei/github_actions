@@ -1,0 +1,22 @@
+name: release-github-actions
+on:
+  push:
+    branches:
+      - 'main'
+
+# Save remote version
+# BUILD
+# Test
+# Delete old version / Reset to old version
+
+jobs:
+  deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Webhook (mattermost)
+        uses: Tueftlerei/github_actions/.github/actions/mattermost@main
+        with:
+          #
+          message: ':gear: TEST MATTERMOST_WEBHOOK'
+          #
+          webhook: ${{ secrets.MATTERMOST_WEBHOOK }}
