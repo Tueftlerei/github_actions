@@ -1,47 +1,47 @@
-name: 'Upload'
-description: 'lftp mirror'
+name: "Upload"
+description: "lftp mirror"
 inputs:
   remote-host:
-    description: 'Remote host'
+    description: "Remote host"
     required: true
   remote-user:
-    description: 'SFTP/SSH username'
+    description: "SFTP/SSH username"
     required: true
   ssh-private-key:
-    description: 'SSH private key of user'
+    description: "SSH private key of user"
     required: true
   local-path:
-    description: 'Local path to repository'
+    description: "Local path to repository"
     required: false
     default: .
   remote-path:
-    description: 'Remote path on host'
+    description: "Remote path on host"
     required: false
     default: .
   keep-file-list:
-    description: 'Newline-delimited list of file paths to copy to deployment folder (lftp)'
+    description: "Newline-delimited list of file paths to copy to deployment folder (lftp)"
     required: false
-    default: ''
+    default: ""
   keep-folder-list:
-    description: 'Newline-delimited list of folder paths to copy to deployment folder (lftp)'
+    description: "Newline-delimited list of folder paths to copy to deployment folder (lftp)"
     required: false
-    default: ''
+    default: ""
   mattermostwebhook:
-    description: 'Send webhook event notifications'
+    description: "Send webhook event notifications"
     required: false
   destination:
-    description: 'examples: :clapper: *Live* / :closed_lock_with_key: *Staging*'
+    description: "examples: :clapper: *Live* / :closed_lock_with_key: *Staging*"
     required: false
-    default: ':clapper: *Live*'
+    default: ":clapper: *Live*"
   debug:
-    description: 'Enable debug information (true, false)'
+    description: "Enable debug information (true, false)"
     required: false
     default: true
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
-    - name: 'Deploy'
+    - name: "Deploy"
       shell: bash
       run: |
         echo "::group::Initialization"
@@ -54,7 +54,7 @@ runs:
           local message="$1"
           local commitmessage="${{ github.event.head_commit.message }}"
           local cleanedcommitmessage=${commitmessage//$'\n'/}
-          local post_data="| [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }}) | {cleanedcommitmessage} | :bust_in_silhouette: ${{ github.actor }} |\n| :------------ |:--------------- | :----- |\n| $(date '+%H:%M:%S') | ${message} | ${{inputs.destination}} |"
+          local post_data="| [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }}) | ${cleanedcommitmessage} | :bust_in_silhouette: ${{ github.actor }} |\n| :------------ |:--------------- | :----- |\n| $(date '+%H:%M:%S') | ${message} | ${{inputs.destination}} |"
 
           curl --data "{\"text\":\"${post_data}\"}" --header "Content-Type: application/json" --max-time 30 --show-error --silent --user-agent "GitHub Workflow" "${{inputs.mattermostwebhook}}"
         }
