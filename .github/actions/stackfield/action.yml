@@ -1,0 +1,35 @@
+name: "tell it stackfield"
+description: "webhook"
+inputs:
+  message:
+    description: "message"
+    required: false
+  webhook:
+    description: "Send webhook event notifications"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: "call webhook"
+      shell: bash
+      run: |
+        echo "::group::Initialization"
+        function send_webhook() {
+          local commitmessage="${{ github.event.head_commit.message }}"
+
+          local post_data="_${{inputs.message}}_\n${{ github.repository }}\n${{ github.server_url }}\n${commitmessage}\n${{ github.actor }}\n_$(date '+%H:%M:%S')_"
+
+          curl --data "{\"Title\":\"${post_data}\"}" --header "Content-Type: application/json" --max-time 30 --show-error --silent --user-agent "GitHub Workflow" "${{inputs.webhook}}"
+        }
+        echo "::endgroup::"
+
+
+
+        echo "::group::POST"
+        [ "${{inputs.webhook}}" != "" ] && echo "Webhook notification (send message): $(send_webhook)"
+        echo "::endgroup::"
+
+
+
+        exit 0
