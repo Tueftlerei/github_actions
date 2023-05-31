@@ -13,10 +13,10 @@ jobs:
   deployment:
     runs-on: ubuntu-latest
     steps:
-      - name: Webhook (mattermost)
-        uses: Tueftlerei/github_actions/.github/actions/mattermost@main
+      - name: Webhook (stackfield)
+        uses: Tueftlerei/github_actions/.github/actions/stackfield@main
         with:
           #
-          message: ':gear: TEST MATTERMOST_WEBHOOK'
+          message: 'TEST STACKFIELD_WEBHOOK'
           #
-          webhook: ${{ secrets.MATTERMOST_WEBHOOK }}
+          webhook: ${{ secrets.STACKFIELD_WEBHOOK }}
