@@ -26,13 +26,6 @@ inputs:
     description: "Newline-delimited list of folder paths to copy to deployment folder (lftp)"
     required: false
     default: ""
-  mattermostwebhook:
-    description: "Send webhook event notifications"
-    required: false
-  destination:
-    description: "examples: :clapper: *Live* / :closed_lock_with_key: *Staging*"
-    required: false
-    default: ":clapper: *Live*"
   debug:
     description: "Enable debug information (true, false)"
     required: false
@@ -48,15 +41,6 @@ runs:
 
         function show_hr() {
           printf '%.s_' {1..100} && echo ""
-        }
-
-        function send_webhook() {
-          local message="$1"
-          local commitmessage="${{ github.event.head_commit.message }}"
-          local cleanedcommitmessage=${commitmessage//$'\n'/}
-          local post_data="| [${{ github.repository }}](${{ github.server_url }}/${{ github.repository }}) | ${cleanedcommitmessage} | :bust_in_silhouette: ${{ github.actor }} |\n| :------------ |:--------------- | :----- |\n| $(date '+%H:%M:%S') | ${message} | ${{inputs.destination}} |"
-
-          curl --data "{\"text\":\"${post_data}\"}" --header "Content-Type: application/json" --max-time 30 --show-error --silent --user-agent "GitHub Workflow" "${{inputs.mattermostwebhook}}"
         }
 
         echo "::endgroup::" 
@@ -145,15 +129,9 @@ runs:
 
         lftp -c "mirror --exclude index.html --no-symlinks --reverse ${{inputs.local-path}} ${{inputs.remote-path}}"
 
-        [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :hammer: Deployment Started")" 
-
         lftp -c "put -e -O /"${{inputs.remote-path}}/" "${{inputs.local-path}}/index.html""
 
-        [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :rocket: Deployment Finished")"
-
         lftp -c "mirror --no-symlinks --reverse --delete ${{inputs.local-path}} ${{inputs.remote-path}}"
-
-        [ "${{inputs.mattermostwebhook}}" != "" ] && echo "Mattermost Webhook notification (start): $(send_webhook " :broom: Cleanup")"
 
         echo "::endgroup::"
 
