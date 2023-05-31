@@ -18,7 +18,7 @@ runs:
         function send_webhook() {
           local commitmessage="${{ github.event.head_commit.message }}"
 
-          local post_data="_GITHUB ACTION MESSAGE_\n*${{inputs.message}}*\n+${{ github.repository }}+\ncommit_url: ${{ github.event.head_commit.url }}\ncommit_author: ${{ github.actor }}\n+${commitmessage}+"
+          local post_data="_GITHUB ACTION MESSAGE_\n*${{inputs.message}}*\n+${{ github.repository }}+\ncommit_url: ${{ github.event.head_commit.url }}\ncommit_author: ${{ github.actor }}\n+${commitmessage}+\n "
 
           curl --data "{\"Title\":\"${post_data}\"}" --header "Content-Type: application/json" --max-time 30 --show-error --silent --user-agent "GitHub Workflow" "${{inputs.webhook}}"
         }
