@@ -17,6 +17,6 @@ jobs:
         uses: Tueftlerei/github_actions/.github/actions/stackfield@main
         with:
           #
-          message: 'TEST STACKFIELD_WEBHOOK'
+          message: 'Stackfield WebHook Test'
           #
           webhook: ${{ secrets.STACKFIELD_WEBHOOK }}
