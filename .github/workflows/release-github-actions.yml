@@ -13,7 +13,7 @@ jobs:
   deployment:
     runs-on: ubuntu-latest
     steps:
-      - name: Webhook (stackfield)
+      - name: Webhook (Stackfield)
         uses: Tueftlerei/github_actions/.github/actions/stackfield@main
         with:
           #
